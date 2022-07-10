@@ -95,7 +95,7 @@ mod internal {
             .allowlist_function("^(fpng).*")
             .allowlist_type("^(fpng).*")
             .allowlist_var("^(fpng).*")
-            .opaque_type("^(std).*")
+            .opaque_type("fpng::buffer")
             .ctypes_prefix("cty")
             .allowlist_recursively(false)
             .generate_inline_functions(true)

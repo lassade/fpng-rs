@@ -14,17 +14,48 @@ pub mod bindings {
 
     use super::sys;
 
+    pub struct Buffer {
+        internal: sys::buffer,
+    }
+
+    impl Default for Buffer {
+        fn default() -> Self {
+            unsafe {
+                let mut internal = core::mem::MaybeUninit::zeroed().assume_init();
+                sys::buffer_create(&mut internal as *mut _);
+                Self { internal }
+            }
+        }
+    }
+
+    impl Buffer {
+        pub fn bytes(&self) -> &[u8] {
+            unsafe {
+                core::slice::from_raw_parts(
+                    sys::buffer_pointer(&self.internal as *const _),
+                    sys::buffer_size(&self.internal as *const _) as _,
+                )
+            }
+        }
+    }
+
+    impl Drop for Buffer {
+        fn drop(&mut self) {
+            unsafe { sys::buffer_dispose(&mut self.internal as *mut _) }
+        }
+    }
+
     /// Call [`Png::detect_cpu()`] once before using so it can detect if the CPU supports SSE 4.1+pclmul (for fast CRC-32 and Adler32).
     /// Otherwise, it'll always use the slower scalar fallbacks.
     pub struct FPng {
         width: u32,
         height: u32,
         channels: u32,
-        buffer: sys::buffer,
+        buffer: Buffer,
     }
 
     #[derive(Debug, Error)]
-    pub enum PngCreationError {
+    pub enum FPngCreationError {
         //Success = sys::FPNG_DECODE_SUCCESS as _,
         #[error("file is a valid PNG file, but it wasn't written by FPNG so you should try decoding it with a general purpose PNG decoder")]
         NotFPng = sys::FPNG_DECODE_NOT_FPNG as _,
@@ -50,9 +81,13 @@ pub mod bindings {
         // FileSeekFailed = sys::FPNG_DECODE_FILE_SEEK_FAILED,
     }
 
-    impl Drop for FPng {
-        fn drop(&mut self) {
-            unsafe { sys::dispose_buffer(&mut self.buffer as *mut _) }
+    bitflags::bitflags! {
+        pub struct FPngEncodeFlags: u32 {
+            /// Enables computing custom Huffman tables for each file, instead of using the custom global tables.
+            /// Results in roughly 6% smaller files on average, but compression is around 40% slower.
+            const FPNG_ENCODE_SLOWER = sys::FPNG_ENCODE_SLOWER as u32;
+            /// Only use raw Deflate blocks (no compression at all). Intended for testing.
+            const FPNG_FORCE_UNCOMPRESSED = sys::FPNG_FORCE_UNCOMPRESSED as u32;
         }
     }
 
@@ -70,49 +105,35 @@ pub mod bindings {
         }
 
         pub fn bytes(&self) -> &[u8] {
-            unsafe {
-                core::slice::from_raw_parts(self.buffer.pointer as *const _, self.buffer.size as _)
-            }
-        }
-
-        pub fn rgba32(&self) -> &[u32] {
-            assert!(self.channels == 4, "not a 4 chanel png");
-            unsafe {
-                core::slice::from_raw_parts(
-                    self.buffer.pointer as *const _,
-                    self.buffer.size as usize / core::mem::size_of::<u32>(),
-                )
-            }
+            self.buffer.bytes()
         }
 
         /// Call once to identify if the processor supports SSE.
-        pub fn detect_cpu() {
+        pub fn init() {
             unsafe {
                 sys::fpng_init();
             }
         }
 
         /// Create a png from bytes
-        pub fn from_bytes(bytes: &[u8], desired_channels: u32) -> Result<FPng, PngCreationError> {
+        pub fn from_bytes(bytes: &[u8], desired_channels: u32) -> Result<FPng, FPngCreationError> {
             let mut png = FPng {
                 width: 0,
                 height: 0,
-                channels: 0,
-                buffer: unsafe { core::mem::MaybeUninit::zeroed().assume_init() },
+                channels: desired_channels,
+                buffer: Buffer::default(),
             };
 
             unsafe {
-                sys::create_buffer(&mut png.buffer as *mut _);
-            }
+                let mut chnnels_in_file: u32 = 0;
 
-            unsafe {
                 let flags = sys::fpng_decode_buffer(
                     bytes.as_ptr() as *const _,
                     bytes.len() as _,
-                    &mut png.buffer as *mut _,
+                    &mut png.buffer.internal as *mut _,
                     &mut png.width as *mut _,
                     &mut png.height as *mut _,
-                    &mut png.channels as *mut _,
+                    &mut chnnels_in_file as *mut _,
                     desired_channels,
                 );
 
@@ -123,5 +144,48 @@ pub mod bindings {
 
             Ok(png)
         }
+
+        pub fn encode(
+            bytes: &[u8],
+            width: u32,
+            height: u32,
+            channels: u32,
+            flags: FPngEncodeFlags,
+        ) -> Buffer {
+            let mut buffer = Buffer::default();
+
+            unsafe {
+                sys::fpng_encode_image_to_buffer(
+                    bytes.as_ptr() as *const _,
+                    width,
+                    height,
+                    channels,
+                    &mut buffer.internal as *mut _,
+                    flags.bits(),
+                );
+            }
+
+            buffer
+        }
+    }
+}
+
+#[cfg(not(feature = "internal-bindgen-on-build"))]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn load() {
+        FPng::init();
+        let png =
+            FPng::from_bytes(include_bytes!("../fpng/example.png"), 4).expect("failed to load png");
+        assert_eq!(png.width(), 687);
+        assert_eq!(png.height(), 1012);
+        assert_eq!(png.channels(), 4);
+        assert_eq!(
+            png.width() * png.height() * png.channels(),
+            png.bytes().len() as _
+        );
     }
 }
