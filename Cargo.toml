@@ -3,7 +3,7 @@ name = "fpng-rs"
 version = "1.0.6"
 edition = "2021"
 description = "safe fpng bindings"
-license = "unlicense"
+license = "MIT OR Apache-2.0"
 documentation = "https://docs.rs/fpng-rs"
 authors = ["Felipe Jorge <felipe.jorge.pereira@gmail.com>"]
 
