@@ -8,9 +8,9 @@ namespace fpng
         buf = std::move(buffer());
     }
 
-    void dispose_buffer(buffer *buf)
+    void dispose_buffer(buffer &buf)
     {
-        delete buf;
+        std::move(buf);
     }
 
     bool fpng_encode_image_to_buffer(const void *pImage, uint32_t w, uint32_t h, uint32_t num_chans, buffer &buf, uint32_t flags)

@@ -8,11 +8,11 @@ pub struct buffer {
     pub internal: [u64; 3usize],
 }
 extern "C" {
-    #[link_name = "\u{1}?create_buffer@fpng@@YAXPEAUbuffer@1@@Z"]
+    #[link_name = "\u{1}?create_buffer@fpng@@YAXAEAUbuffer@1@@Z"]
     pub fn create_buffer(buf: *mut buffer);
 }
 extern "C" {
-    #[link_name = "\u{1}?dispose_buffer@fpng@@YAXPEAUbuffer@1@@Z"]
+    #[link_name = "\u{1}?dispose_buffer@fpng@@YAXAEAUbuffer@1@@Z"]
     pub fn dispose_buffer(buf: *mut buffer);
 }
 extern "C" {

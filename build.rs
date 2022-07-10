@@ -5,19 +5,52 @@ fn main() {
 #[cfg(not(feature = "internal-bindgen-on-build"))]
 mod internal {
     pub fn run() {
+        let out = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
+        std::fs::remove_dir_all(&out).unwrap();
+        std::fs::create_dir(&out).unwrap();
+
         // todo link cpp file
         cc::Build::new()
             .file("fpng/src/fpng.cpp")
+            .cpp(true)
             .define("FPNG_NO_STDIO", None)
             .include("fpng/src")
             .compile("fpng");
 
         cc::Build::new()
             .file("src/bridge.cpp")
+            .cpp(true)
             .define("FPNG_NO_STDIO", None)
             .include("fpng/src")
-            .include("scr")
+            .include("src")
             .compile("bridge");
+
+        // // Test that the `windows_registry` module will set PATH by looking for
+        // // nmake which runs vanilla cl, and then also test it after we remove all
+        // // the relevant env vars from our own process.
+        // if target.contains("msvc") {
+        //     let out = out.join("tmp");
+        //     fs::create_dir(&out).unwrap();
+
+        //     fs::remove_dir_all(&out).unwrap();
+        //     fs::create_dir(&out).unwrap();
+
+        //     env::remove_var("PATH");
+        //     env::remove_var("VCINSTALLDIR");
+        //     env::remove_var("INCLUDE");
+        //     env::remove_var("LIB");
+        //     println!("nmake 2");
+        //     let status = cc::windows_registry::find(&target, "nmake.exe")
+        //         .unwrap()
+        //         .env_remove("MAKEFLAGS")
+        //         .arg("/fsrc/NMakefile")
+        //         .env("OUT_DIR", &out)
+        //         .status()
+        //         .unwrap();
+        //     assert!(status.success());
+        //     println!("cargo:rustc-link-lib=msvc");
+        //     println!("cargo:rustc-link-search={}", out.display());
+        // }
     }
 }
 
