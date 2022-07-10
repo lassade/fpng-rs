@@ -4,6 +4,8 @@ version = "1.0.6"
 edition = "2021"
 description = "safe fpng bindings"
 license = "unlicense"
+documentation = "https://docs.rs/fpng-rs"
+authors = ["Felipe Jorge <felipe.jorge.pereira@gmail.com>"]
 
 [dependencies]
 cty = "0.2.2"
