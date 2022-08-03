@@ -1,3 +1,5 @@
+#[cfg(not(doc))]
+
 fn main() {
     internal::run();
 }

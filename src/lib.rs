@@ -115,8 +115,8 @@ pub mod bindings {
             }
         }
 
-        /// Create a png from bytes
-        pub fn from_bytes(bytes: &[u8], desired_channels: u32) -> Result<FPng, FPngCreationError> {
+        /// Create read a `FPNG` from bytes
+        pub fn decode(bytes: &[u8], desired_channels: u32) -> Result<FPng, FPngCreationError> {
             let mut png = FPng {
                 width: 0,
                 height: 0,
@@ -145,6 +145,7 @@ pub mod bindings {
             Ok(png)
         }
 
+        /// Encode raw pixels into a `FPNG` file
         pub fn encode(
             bytes: &[u8],
             width: u32,
@@ -153,6 +154,12 @@ pub mod bindings {
             flags: FPngEncodeFlags,
         ) -> Buffer {
             let mut buffer = Buffer::default();
+
+            assert!(
+                bytes.len() == (width * height * channels) as _,
+                "texture require {} bytes but {} as given, perhaps `width` or `height` or `channels` are worng",
+                width * height * channels, bytes.len()
+            );
 
             unsafe {
                 sys::fpng_encode_image_to_buffer(
@@ -179,7 +186,7 @@ mod tests {
     fn load() {
         FPng::init();
         let png =
-            FPng::from_bytes(include_bytes!("../fpng/example.png"), 4).expect("failed to load png");
+            FPng::decode(include_bytes!("../fpng/example.png"), 4).expect("failed to load png");
         assert_eq!(png.width(), 687);
         assert_eq!(png.height(), 1012);
         assert_eq!(png.channels(), 4);
